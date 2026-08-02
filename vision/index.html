@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Performance Lab — AI Athlete Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0F1C;
+    --bg-elev:#111A2E;
+    --bg-elev-2:#17233D;
+    --line: rgba(234,240,250,0.08);
+    --line-strong: rgba(234,240,250,0.16);
+    --text:#EAF0FA;
+    --text-dim:#8C9AB8;
+    --text-faint:#586581;
+    --amber:#FFB84D;
+    --amber-soft: rgba(255,184,77,0.14);
+    --green:#3CCB7F;
+    --green-soft: rgba(60,203,127,0.14);
+    --red:#FF6B5E;
+    --red-soft: rgba(255,107,94,0.14);
+    --blue:#5FA8FF;
+    --display: 'Oswald', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1100px 500px at 18% -10%, rgba(255,184,77,0.10), transparent 60%),
+      radial-gradient(900px 600px at 100% 0%, rgba(95,168,255,0.08), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--body);
+    min-height:100vh;
+    line-height:1.5;
+  }
+  a{color:var(--amber);}
+  ::selection{background:var(--amber); color:#1A1305;}
+
+  /* ---------- Scoreboard header ---------- */
+  header.board{
+    position:relative;
+    padding:38px 6vw 30px;
+    border-bottom:1px solid var(--line);
+    overflow:hidden;
+  }
+  header.board::before{
+    content:"";
+    position:absolute; inset:-40% -10% auto -10%;
+    height:220px;
+    background: radial-gradient(closest-side, rgba(255,184,77,0.22), transparent 70%);
+    filter: blur(10px);
+    pointer-events:none;
+  }
+  .board-top{
+    display:flex; align-items:baseline; justify-content:space-between; gap:24px; flex-wrap:wrap;
+    position:relative;
+  }
+  .board-title{
+    font-family:var(--display);
+    font-weight:700;
+    letter-spacing:0.02em;
+    font-size:clamp(28px,4.2vw,46px);
+    text-transform:uppercase;
+    margin:0;
+    display:flex; align-items:baseline; gap:14px;
+  }
+  .board-title .dot{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 12px var(--green);
+    display:inline-block;
+    transform:translateY(-6px);
+  }
+  .board-sub{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin-top:6px;
+  }
+  .api-config{
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--mono);
+    font-size:12px;
+  }
+  .api-config input{
+    background:var(--bg-elev);
+    border:1px solid var(--line-strong);
+    color:var(--text);
+    padding:9px 12px;
+    border-radius:8px;
+    font-family:var(--mono);
+    font-size:12px;
+    width:230px;
+  }
+  .api-config button{
+    background:var(--bg-elev-2);
+    border:1px solid var(--line-strong);
+    color:var(--text);
+    padding:9px 14px;
+    border-radius:8px;
+    font-family:var(--mono);
+    font-size:12px;
+    cursor:pointer;
+    transition:border-color .15s;
+  }
+  .api-config button:hover{border-color:var(--amber);}
+  #healthDot{width:8px;height:8px;border-radius:50%;background:var(--text-faint); display:inline-block; margin-right:6px;}
+  #healthDot.ok{background:var(--green); box-shadow:0 0 8px var(--green);}
+  #healthDot.bad{background:var(--red); box-shadow:0 0 8px var(--red);}
+
+  .sport-chips{
+    display:flex; gap:8px; margin-top:22px; flex-wrap:wrap;
+  }
+  .chip{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    padding:8px 14px;
+    border-radius:999px;
+    border:1px solid var(--line-strong);
+    background:var(--bg-elev);
+    color:var(--text-dim);
+    cursor:pointer;
+    transition:all .15s;
+  }
+  .chip.active{
+    color:#1A1305;
+    background:var(--amber);
+    border-color:var(--amber);
+    font-weight:600;
+  }
+
+  /* ---------- Layout ---------- */
+  main{
+    display:grid;
+    grid-template-columns: 380px 1fr;
+    gap:0;
+    align-items:start;
+  }
+  @media (max-width: 920px){
+    main{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    padding:28px 6vw 60px 6vw;
+  }
+  .panel.left{
+    border-right:1px solid var(--line);
+    position:sticky; top:0;
+  }
+  @media (max-width: 920px){
+    .panel.left{position:static; border-right:none; border-bottom:1px solid var(--line);}
+  }
+
+  .section-label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:26px 0 12px;
+  }
+  .section-label:first-child{margin-top:0;}
+
+  .field{margin-bottom:12px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%;
+    background:var(--bg-elev);
+    border:1px solid var(--line-strong);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:8px;
+    font-family:var(--body);
+    font-size:13.5px;
+  }
+  .field textarea{resize:vertical; min-height:64px;}
+  .field input:focus, .field select:focus, .field textarea:focus{
+    outline:none; border-color:var(--amber);
+  }
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+
+  .dropzone{
+    border:1.5px dashed var(--line-strong);
+    border-radius:var(--radius);
+    padding:22px 16px;
+    text-align:center;
+    cursor:pointer;
+    background:var(--bg-elev);
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--amber);
+    background:var(--amber-soft);
+  }
+  .dropzone .fname{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--green);
+    margin-top:8px;
+    word-break:break-all;
+  }
+  .dropzone .hint{font-size:12px; color:var(--text-faint); margin-top:4px;}
+  .dropzone .icon{font-size:22px;}
+
+  .toggle-row{
+    display:flex; align-items:center; gap:10px;
+    margin:18px 0 4px;
+    font-size:13px;
+    color:var(--text-dim);
+  }
+  .switch{
+    width:38px; height:22px; border-radius:999px; background:var(--bg-elev-2);
+    border:1px solid var(--line-strong); position:relative; cursor:pointer; flex:none;
+  }
+  .switch .knob{
+    position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+    background:var(--text-dim); transition:all .15s;
+  }
+  .switch.on{background:var(--amber-soft); border-color:var(--amber);}
+  .switch.on .knob{left:18px; background:var(--amber);}
+
+  #adaptiveBlock{display:none; margin-top:6px;}
+  #adaptiveBlock.show{display:block;}
+
+  .submit-btn{
+    width:100%;
+    margin-top:24px;
+    padding:14px;
+    border-radius:9px;
+    border:none;
+    background:var(--amber);
+    color:#1A1305;
+    font-family:var(--display);
+    font-weight:600;
+    font-size:15px;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:filter .15s, transform .1s;
+  }
+  .submit-btn:hover{filter:brightness(1.08);}
+  .submit-btn:active{transform:scale(0.99);}
+  .submit-btn:disabled{opacity:0.55; cursor:not-allowed;}
+
+  .status-line{
+    margin-top:12px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--text-dim);
+    min-height:16px;
+  }
+  .status-line.err{color:var(--red);}
+  .status-line.ok{color:var(--green);}
+
+  /* ---------- Right / results ---------- */
+  .empty-state{
+    border:1px dashed var(--line);
+    border-radius:14px;
+    padding:60px 30px;
+    text-align:center;
+    color:var(--text-faint);
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  .empty-state .big{
+    font-family:var(--display);
+    font-size:20px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    margin-bottom:10px;
+  }
+
+  .loading{
+    display:none;
+    align-items:center; gap:14px;
+    padding:40px 10px;
+    color:var(--text-dim);
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  .loading.show{display:flex;}
+  .pulse{
+    width:14px;height:14px;border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 0 0 rgba(255,184,77,0.6);
+    animation:pulse 1.3s infinite;
+    flex:none;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(255,184,77,0.55);}
+    70%{box-shadow:0 0 0 14px rgba(255,184,77,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,184,77,0);}
+  }
+
+  .banner{
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:13px;
+    margin-bottom:22px;
+    border:1px solid var(--line-strong);
+    display:none;
+  }
+  .banner.show{display:block;}
+  .banner.err{background:var(--red-soft); border-color:rgba(255,107,94,0.4); color:#FFD3CE;}
+
+  /* Readout grid (raw CV metrics) */
+  .readout-card{
+    background:var(--bg-elev);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 22px;
+    margin-bottom:26px;
+  }
+  .readout-head{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+    margin-bottom:16px;
+  }
+  .readout-head h3{
+    font-family:var(--display);
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    font-size:15px;
+    margin:0;
+    color:var(--text);
+  }
+  .confidence{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
+  }
+  .conf-bar{width:90px; height:6px; border-radius:4px; background:var(--bg-elev-2); overflow:hidden;}
+  .conf-fill{height:100%; background:linear-gradient(90deg, var(--red), var(--amber), var(--green));}
+  .quality-note{
+    font-size:12px; color:var(--text-dim); margin:-6px 0 16px; line-height:1.6;
+  }
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(150px,1fr));
+    gap:12px;
+  }
+  .stat{
+    background:var(--bg-elev-2);
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:12px 14px;
+  }
+  .stat .label{
+    font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:6px;
+  }
+  .stat .value{
+    font-family:var(--mono); font-size:18px; color:var(--text);
+  }
+  .stat .value.null{color:var(--text-faint); font-size:15px;}
+  .stat .unit{font-size:11px; color:var(--text-dim); margin-left:3px;}
+
+  /* AI report sections */
+  .report-section{
+    margin-bottom:22px;
+    background:var(--bg-elev);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .report-section > .head{
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:10px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .report-section > .head .idx{
+    font-family:var(--mono); font-size:11px; color:var(--amber);
+    background:var(--amber-soft); border-radius:5px; padding:2px 7px;
+  }
+  .report-section > .head h3{
+    font-family:var(--display);
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    font-size:15px;
+    margin:0;
+    flex:1;
+  }
+  .report-section > .head .chev{
+    color:var(--text-faint); transition:transform .15s; font-size:12px;
+  }
+  .report-section.collapsed > .head .chev{transform:rotate(-90deg);}
+  .report-section > .body{
+    padding:18px 20px 20px;
+  }
+  .report-section.collapsed > .body{display:none;}
+
+  /* generic node rendering */
+  .kv-list{display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:13px;}
+  .kv-list dt{color:var(--text-dim); white-space:nowrap;}
+  .kv-list dd{margin:0; color:var(--text);}
+  .node-string{font-size:13.5px; color:var(--text); line-height:1.65;}
+  .node-array-primitive{display:flex; flex-wrap:wrap; gap:7px;}
+  .tag-chip{
+    font-family:var(--mono); font-size:11.5px;
+    background:var(--bg-elev-2); border:1px solid var(--line);
+    border-radius:999px; padding:5px 11px; color:var(--text-dim);
+  }
+  .card-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:12px;}
+  .obj-card{
+    background:var(--bg-elev-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+  }
+  .obj-card .subhead{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--amber); margin-bottom:8px;
+  }
+  .nested-block{margin-top:10px;}
+  .field-title{
+    font-size:11px; letter-spacing:0.04em; text-transform:uppercase;
+    color:var(--text-faint); margin:14px 0 6px;
+  }
+  .field-title:first-child{margin-top:0;}
+
+  footer{
+    padding:30px 6vw 50px;
+    color:var(--text-faint);
+    font-family:var(--mono);
+    font-size:11.5px;
+    border-top:1px solid var(--line);
+  }
+</style>
+</head>
+<body>
+
+<header class="board">
+  <div class="board-top">
+    <div>
+      <h1 class="board-title"><span class="dot"></span>Performance Lab</h1>
+      <div class="board-sub">AI Performance Development System · video → metrics → grounded report</div>
+    </div>
+    <div class="api-config">
+      <span><span id="healthDot"></span><span id="healthText">not checked</span></span>
+      <input id="apiBase" type="text" value="http://localhost:8000" spellcheck="false">
+      <button id="checkHealthBtn" type="button">Check API</button>
+    </div>
+  </div>
+  <div class="sport-chips" id="sportChips">
+    <div class="chip active" data-sport="Football">Football</div>
+    <div class="chip" data-sport="Basketball">Basketball</div>
+    <div class="chip" data-sport="Volleyball">Volleyball</div>
+    <div class="chip" data-sport="Handball">Handball</div>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: form -->
+  <section class="panel left">
+    <div class="section-label">Athlete</div>
+    <div class="row2">
+      <div class="field"><label>Name</label><input id="p_name" type="text" placeholder="Ahmed Salah"></div>
+      <div class="field"><label>Age</label><input id="p_age" type="number" min="6" max="60" value="17"></div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Gender</label>
+        <select id="p_gender">
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </div>
+      <div class="field"><label>Position</label><input id="p_position" type="text" placeholder="Winger"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Height (cm)</label><input id="p_height" type="number" placeholder="175"></div>
+      <div class="field"><label>Weight (kg)</label><input id="p_weight" type="number" placeholder="68"></div>
+    </div>
+    <div class="field">
+      <label>Competition level</label>
+      <select id="p_level">
+        <option>Grassroots</option>
+        <option>Academy</option>
+        <option>Semi-Pro</option>
+        <option selected>Professional</option>
+        <option>Elite/National</option>
+      </select>
+    </div>
+    <div class="field"><label>Current club (optional)</label><input id="p_club" type="text"></div>
+
+    <div class="section-label">Goals</div>
+    <div class="field">
+      <label>One goal per line</label>
+      <textarea id="p_goals" placeholder="improve acceleration&#10;reduce late-match fatigue">improve acceleration
+reduce late-match fatigue</textarea>
+    </div>
+
+    <div class="section-label">Video</div>
+    <div class="dropzone" id="dropzone">
+      <div class="icon">🎥</div>
+      <div>Drop a video or click to browse</div>
+      <div class="hint">.mp4 · .mov · .avi · .mkv · .webm · .m4v</div>
+      <div class="fname" id="fname"></div>
+      <input type="file" id="videoInput" accept=".mp4,.mov,.avi,.mkv,.webm,.m4v" style="display:none;">
+    </div>
+
+    <div class="row2" style="margin-top:12px;">
+      <div class="field"><label>Ball color (optional)</label>
+        <select id="p_ballcolor">
+          <option value="">— none —</option>
+          <option value="orange">Orange</option>
+          <option value="yellow">Yellow</option>
+          <option value="white">White</option>
+          <option value="green">Green</option>
+        </select>
+      </div>
+      <div class="field"><label>Max frames (optional)</label><input id="p_maxframes" type="number" placeholder="e.g. 900"></div>
+    </div>
+    <div class="hint" style="color:var(--text-faint); font-size:11.5px; margin-top:-6px;">
+      Without height or a manual pixels-per-meter value, distance/speed/jump metrics come back as null instead of guessed.
+    </div>
+
+    <div class="toggle-row">
+      <div class="switch" id="adaptiveSwitch"><div class="knob"></div></div>
+      <span>Adaptive analysis (compare with a previous session)</span>
+    </div>
+    <div id="adaptiveBlock">
+      <div class="toggle-row" style="margin-top:10px;">
+        <div class="switch" id="prevModeSwitch"><div class="knob"></div></div>
+        <span id="prevModeLabel">Upload previous video (off = paste previous JSON)</span>
+      </div>
+      <div id="prevVideoBlock" style="margin-top:10px;">
+        <div class="dropzone" id="dropzonePrev">
+          <div class="icon">🎥</div>
+          <div>Previous session video</div>
+          <div class="fname" id="fnamePrev"></div>
+          <input type="file" id="prevVideoInput" accept=".mp4,.mov,.avi,.mkv,.webm,.m4v" style="display:none;">
+        </div>
+      </div>
+      <div id="prevJsonBlock" style="margin-top:10px; display:none;">
+        <div class="field">
+          <label>Previous video_analysis JSON</label>
+          <textarea id="prevJson" placeholder='{"metrics": {...}, "confidence_score": 0.8, ...}'></textarea>
+        </div>
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" type="button">Run analysis</button>
+    <div class="status-line" id="statusLine"></div>
+  </section>
+
+  <!-- RIGHT: results -->
+  <section class="panel right">
+    <div class="banner err" id="errorBanner"></div>
+
+    <div class="loading" id="loading">
+      <div class="pulse"></div>
+      <span id="loadingText">Uploading video and running the pipeline…</span>
+    </div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="big">No analysis yet</div>
+      Fill in the athlete's profile, attach a video, and run the analysis.<br>
+      The raw computer-vision readout and the full AI report will appear here.
+    </div>
+
+    <div id="results" style="display:none;">
+      <div class="readout-card" id="readoutCard"></div>
+      <div class="readout-card" id="readoutCardPrev" style="display:none;"></div>
+      <div id="reportSections"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  performance-lab · talks directly to your main.py FastAPI server (/upload-and-analyze, /upload-and-adaptive-analyze) · CORS must allow this origin
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- small state ----------
+  var selectedSport = "Football";
+  var videoFile = null;
+  var prevVideoFile = null;
+
+  var METRIC_LABELS = {
+    distance_covered_m: ["Distance covered", "m"],
+    speed_avg_ms: ["Average speed", "m/s"],
+    top_speed_ms: ["Top speed", "m/s"],
+    acceleration_ms2: ["Peak acceleration", "m/s²"],
+    deceleration_ms2: ["Peak deceleration", "m/s²"],
+    sprint_count: ["Sprints", ""],
+    high_intensity_runs: ["High-intensity runs", ""],
+    movement_efficiency: ["Movement efficiency", "0-1"],
+    fatigue_index: ["Fatigue index", "0-1"],
+    jump_height_cm: ["Jump height", "cm"],
+    landing_stability: ["Landing stability", "0-1"],
+    balance: ["Balance", "0-1"],
+    ball_touches: ["Ball touches", ""],
+    video_duration_s: ["Video duration", "s"],
+    frames_analyzed: ["Frames analyzed", ""]
+  };
+
+  var SECTION_ORDER = [
+    "player_profile","performance_summary","benchmark_comparison","strengths","weaknesses",
+    "root_cause_analysis","training_plan_daily","training_plan_weekly","training_plan_monthly",
+    "recovery_plan","injury_prevention","development_roadmap","progress_prediction",
+    "coach_summary","athlete_summary"
+  ];
+
+  function titleize(key){
+    return key.replace(/_/g," ").replace(/\b\w/g, function(c){return c.toUpperCase();});
+  }
+
+  // ---------- DOM refs ----------
+  var $ = function(id){return document.getElementById(id);};
+  var apiBaseInput = $("apiBase");
+  var healthDot = $("healthDot");
+  var healthText = $("healthText");
+
+  // sport chips
+  document.querySelectorAll(".chip").forEach(function(chip){
+    chip.addEventListener("click", function(){
+      document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("active");});
+      chip.classList.add("active");
+      selectedSport = chip.getAttribute("data-sport");
+    });
+  });
+
+  // dropzones
+  function wireDropzone(zoneId, inputId, fnameId, onFile){
+    var zone = $(zoneId), input = $(inputId), fname = $(fnameId);
+    zone.addEventListener("click", function(){ input.click(); });
+    zone.addEventListener("dragover", function(e){ e.preventDefault(); zone.classList.add("drag"); });
+    zone.addEventListener("dragleave", function(){ zone.classList.remove("drag"); });
+    zone.addEventListener("drop", function(e){
+      e.preventDefault(); zone.classList.remove("drag");
+      if(e.dataTransfer.files && e.dataTransfer.files[0]){
+        input.files = e.dataTransfer.files;
+        handle(e.dataTransfer.files[0]);
+      }
+    });
+    input.addEventListener("change", function(){
+      if(input.files && input.files[0]) handle(input.files[0]);
+    });
+    function handle(file){
+      fname.textContent = file.name + "  (" + (file.size/1024/1024).toFixed(1) + " MB)";
+      onFile(file);
+    }
+  }
+  wireDropzone("dropzone","videoInput","fname", function(f){ videoFile = f; });
+  wireDropzone("dropzonePrev","prevVideoInput","fnamePrev", function(f){ prevVideoFile = f; });
+
+  // adaptive toggle
+  var adaptiveOn = false;
+  $("adaptiveSwitch").addEventListener("click", function(){
+    adaptiveOn = !adaptiveOn;
+    this.classList.toggle("on", adaptiveOn);
+    $("adaptiveBlock").classList.toggle("show", adaptiveOn);
+  });
+
+  var prevModeUpload = true; // true = upload previous video, false = paste JSON
+  $("prevModeSwitch").addEventListener("click", function(){
+    prevModeUpload = !prevModeUpload;
+    this.classList.toggle("on", !prevModeUpload);
+    $("prevVideoBlock").style.display = prevModeUpload ? "block" : "none";
+    $("prevJsonBlock").style.display = prevModeUpload ? "none" : "block";
+    $("prevModeLabel").textContent = prevModeUpload
+      ? "Upload previous video (off = paste previous JSON)"
+      : "Pasting previous JSON (off = upload previous video)";
+  });
+
+  // health check
+  $("checkHealthBtn").addEventListener("click", checkHealth);
+  function checkHealth(){
+    healthDot.className = "";
+    healthText.textContent = "checking…";
+    fetch(apiBaseInput.value.replace(/\/$/,"") + "/health")
+      .then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function(data){
+        healthDot.className = "ok";
+        healthText.textContent = "online · " + (data.model || "");
+      })
+      .catch(function(err){
+        healthDot.className = "bad";
+        healthText.textContent = "unreachable";
+      });
+  }
+
+  // ---------- submit ----------
+  $("submitBtn").addEventListener("click", runAnalysis);
+
+  function setStatus(msg, kind){
+    var el = $("statusLine");
+    el.textContent = msg || "";
+    el.className = "status-line" + (kind ? " " + kind : "");
+  }
+
+  function showError(msg){
+    var b = $("errorBanner");
+    b.textContent = msg;
+    b.classList.add("show");
+  }
+  function hideError(){ $("errorBanner").classList.remove("show"); }
+
+  function buildProfile(){
+    var goalsLines = $("p_goals").value.split("\n").map(function(s){return s.trim();}).filter(Boolean);
+    var profile = {
+      name: $("p_name").value.trim() || "Unnamed Athlete",
+      age: parseInt($("p_age").value || "0", 10),
+      gender: $("p_gender").value,
+      sport: selectedSport,
+      position: $("p_position").value.trim() || "Unknown",
+      competition_level: $("p_level").value
+    };
+    if($("p_height").value) profile.height_cm = parseFloat($("p_height").value);
+    if($("p_weight").value) profile.weight_kg = parseFloat($("p_weight").value);
+    if($("p_club").value.trim()) profile.current_club = $("p_club").value.trim();
+    return {profile: profile, goals: goalsLines};
+  }
+
+  function runAnalysis(){
+    hideError();
+    if(!videoFile){ showError("Attach a video file first."); return; }
+    var built = buildProfile();
+    if(!built.profile.name || !built.profile.position){ showError("Name and position are required."); return; }
+
+    var adaptive = adaptiveOn;
+    if(adaptive){
+      if(prevModeUpload && !prevVideoFile){ showError("Attach a previous session video, or switch to pasting previous JSON."); return; }
+      if(!prevModeUpload && !$("prevJson").value.trim()){ showError("Paste the previous video_analysis JSON, or switch to uploading a previous video."); return; }
+    }
+
+    var base = apiBaseInput.value.replace(/\/$/,"");
+    var endpoint = adaptive ? "/upload-and-adaptive-analyze" : "/upload-and-analyze";
+
+    var fd = new FormData();
+    fd.append("video", videoFile);
+    fd.append("player_profile", JSON.stringify(built.profile));
+    fd.append("goals", JSON.stringify({goals: built.goals}));
+    if($("p_ballcolor").value) fd.append("ball_color", $("p_ballcolor").value);
+    if($("p_maxframes").value) fd.append("max_frames", $("p_maxframes").value);
+    if(built.profile.height_cm) fd.append("player_height_cm", built.profile.height_cm);
+
+    if(adaptive){
+      if(prevModeUpload){
+        fd.append("previous_video", prevVideoFile);
+      } else {
+        fd.append("previous_video_analysis", $("prevJson").value.trim());
+      }
+    }
+
+    $("submitBtn").disabled = true;
+    $("loading").classList.add("show");
+    $("emptyState").style.display = "none";
+    $("results").style.display = "none";
+    setStatus("Sending request…");
+
+    fetch(base + endpoint, { method: "POST", body: fd })
+      .then(function(r){
+        return r.json().then(function(data){
+          if(!r.ok){
+            var msg = (data && data.detail) ? data.detail : ("HTTP " + r.status);
+            throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+          }
+          return data;
+        });
+      })
+      .then(function(data){
+        setStatus("Done.", "ok");
+        renderResults(data, adaptive);
+      })
+      .catch(function(err){
+        setStatus("Failed.", "err");
+        showError(err.message || String(err));
+        $("emptyState").style.display = "block";
+      })
+      .finally(function(){
+        $("submitBtn").disabled = false;
+        $("loading").classList.remove("show");
+      });
+  }
+
+  // ---------- rendering ----------
+  function renderResults(data, adaptive){
+    $("results").style.display = "block";
+    $("readoutCard").innerHTML = readoutHTML(data.video_analysis_raw, "Live Video Readout");
+    var prevEl = $("readoutCardPrev");
+    if(adaptive && data.previous_video_analysis_raw){
+      prevEl.style.display = "block";
+      prevEl.innerHTML = readoutHTML(data.previous_video_analysis_raw, "Previous Session Readout");
+    } else {
+      prevEl.style.display = "none";
+    }
+
+    var container = $("reportSections");
+    container.innerHTML = "";
+    var report = data.ai_report || {};
+    var keys = SECTION_ORDER.filter(function(k){ return k in report; })
+      .concat(Object.keys(report).filter(function(k){ return SECTION_ORDER.indexOf(k) === -1; }));
+
+    keys.forEach(function(key, i){
+      var section = document.createElement("div");
+      section.className = "report-section";
+      var head = document.createElement("div");
+      head.className = "head";
+      head.innerHTML = '<span class="idx">' + String(i+1).padStart(2,"0") + '</span>' +
+                        '<h3>' + titleize(key) + '</h3><span class="chev">▾</span>';
+      head.addEventListener("click", function(){ section.classList.toggle("collapsed"); });
+      var body = document.createElement("div");
+      body.className = "body";
+      body.appendChild(renderNode(report[key]));
+      section.appendChild(head);
+      section.appendChild(body);
+      container.appendChild(section);
+    });
+  }
+
+  function readoutHTML(raw, title){
+    if(!raw) return "";
+    var metrics = raw.metrics || {};
+    var conf = (raw.confidence_score === null || raw.confidence_score === undefined) ? null : raw.confidence_score;
+    var html = '<div class="readout-head"><h3>' + title + '</h3>';
+    if(conf !== null){
+      var pct = Math.max(0, Math.min(100, conf*100));
+      html += '<div class="confidence">Confidence <div class="conf-bar"><div class="conf-fill" style="width:' + pct + '%"></div></div> ' + (pct.toFixed(0)) + '%</div>';
+    }
+    html += '</div>';
+    if(raw.video_quality_notes){
+      html += '<div class="quality-note">' + escapeHTML(raw.video_quality_notes) + '</div>';
+    }
+    html += '<div class="stat-grid">';
+    Object.keys(METRIC_LABELS).forEach(function(key){
+      if(!(key in metrics)) return;
+      var val = metrics[key];
+      var meta = METRIC_LABELS[key];
+      var display = (val === null || val === undefined) ? "—" : val;
+      var cls = (val === null || val === undefined) ? "value null" : "value";
+      html += '<div class="stat"><div class="label">' + meta[0] + '</div><div class="' + cls + '">' + display +
+              (meta[1] && val !== null && val !== undefined ? '<span class="unit">' + meta[1] + '</span>' : '') +
+              '</div></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderNode(node){
+    if(node === null || node === undefined || node === ""){
+      var span = document.createElement("span");
+      span.className = "node-string";
+      span.style.color = "var(--text-faint)";
+      span.textContent = "—";
+      return span;
+    }
+    if(typeof node === "string" || typeof node === "number" || typeof node === "boolean"){
+      var p = document.createElement("div");
+      p.className = "node-string";
+      p.textContent = String(node);
+      return p;
+    }
+    if(Array.isArray(node)){
+      if(node.length === 0){
+        var e = document.createElement("div");
+        e.className = "node-string"; e.style.color = "var(--text-faint)";
+        e.textContent = "—"; return e;
+      }
+      var allPrimitive = node.every(function(x){ return typeof x !== "object" || x === null; });
+      if(allPrimitive){
+        var wrap = document.createElement("div");
+        wrap.className = "node-array-primitive";
+        node.forEach(function(x){
+          var chip = document.createElement("span");
+          chip.className = "tag-chip";
+          chip.textContent = String(x);
+          wrap.appendChild(chip);
+        });
+        return wrap;
+      }
+      var grid = document.createElement("div");
+      grid.className = "card-grid";
+      node.forEach(function(item){
+        var card = document.createElement("div");
+        card.className = "obj-card";
+        var name = item && (item.name || item.exercise_name || item.title || item.goal);
+        if(name){
+          var sh = document.createElement("div");
+          sh.className = "subhead";
+          sh.textContent = name;
+          card.appendChild(sh);
+        }
+        card.appendChild(renderObjectAsList(item, name ? Object.keys(item).filter(function(k){
+          return !["name","exercise_name","title","goal"].includes(k);
+        }) : null));
+        grid.appendChild(card);
+      });
+      return grid;
+    }
+    // object
+    return renderObjectAsList(node, null);
+  }
+
+  function renderObjectAsList(obj, onlyKeys){
+    var container = document.createElement("div");
+    if(typeof obj !== "object" || obj === null){
+      container.appendChild(renderNode(obj));
+      return container;
+    }
+    var keys = onlyKeys || Object.keys(obj);
+    var simpleDl = document.createElement("dl");
+    simpleDl.className = "kv-list";
+    var hasSimple = false;
+
+    keys.forEach(function(key){
+      var val = obj[key];
+      var isComplex = (typeof val === "object" && val !== null && !(Array.isArray(val) && val.every(function(x){return typeof x !== "object" || x === null;})));
+      if(!isComplex){
+        hasSimple = true;
+        var dt = document.createElement("dt");
+        dt.textContent = titleize(key);
+        var dd = document.createElement("dd");
+        if(Array.isArray(val)){
+          dd.appendChild(renderNode(val));
+        } else {
+          dd.textContent = (val === null || val === undefined || val === "") ? "—" : String(val);
+        }
+        simpleDl.appendChild(dt);
+        simpleDl.appendChild(dd);
+      }
+    });
+    if(hasSimple) container.appendChild(simpleDl);
+
+    keys.forEach(function(key){
+      var val = obj[key];
+      var isComplex = (typeof val === "object" && val !== null && !(Array.isArray(val) && val.every(function(x){return typeof x !== "object" || x === null;})));
+      if(isComplex){
+        var block = document.createElement("div");
+        block.className = "nested-block";
+        var ft = document.createElement("div");
+        ft.className = "field-title";
+        ft.textContent = titleize(key);
+        block.appendChild(ft);
+        block.appendChild(renderNode(val));
+        container.appendChild(block);
+      }
+    });
+    return container;
+  }
+
+  function escapeHTML(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  // initial health check attempt (best-effort, ignore failure silently on load)
+  checkHealth();
+})();
+</script>
+</body>
+</html>

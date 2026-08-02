@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matchday — Squad Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500;600&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch:      #142620;
+    --pitch-deep: #0c1815;
+    --surface:    #1c342c;
+    --surface-2:  #23413688;
+    --line:       #3a5a4c;
+    --chalk:      #eef1e4;
+    --chalk-dim:  #b9c7bd;
+    --amber:      #e2a63a;
+    --teal:       #57b3a6;
+    --rust:       #c15b42;
+    --radius: 3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(180deg, transparent 0 74px, rgba(255,255,255,0.025) 74px 76px),
+      radial-gradient(ellipse at 20% -10%, #1d3b30 0%, var(--pitch) 55%, var(--pitch-deep) 100%);
+    color:var(--chalk);
+    font-family:'Karla', sans-serif;
+    min-height:100vh;
+  }
+  ::selection{background:var(--amber);color:#20140a;}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  /* ---------- header ---------- */
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--line);
+    padding-bottom:14px;margin-bottom:22px;flex-wrap:wrap;gap:14px;
+  }
+  .brand{display:flex;align-items:baseline;gap:12px;}
+  .brand .num{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:800;
+    font-size:15px;color:var(--amber);letter-spacing:2px;
+    border:1.5px solid var(--amber);border-radius:50%;
+    width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  }
+  h1{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:800;
+    font-size:clamp(28px,4vw,42px);letter-spacing:0.5px;margin:0;
+    text-transform:uppercase;line-height:0.95;
+  }
+  h1 span{color:var(--amber);}
+  .tag{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--chalk-dim);letter-spacing:1.5px;text-transform:uppercase;}
+
+  .api-row{display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  .api-row input{
+    background:var(--surface);border:1px solid var(--line);color:var(--chalk);
+    padding:7px 9px;border-radius:var(--radius);font-family:inherit;font-size:12px;width:230px;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--rust);flex-shrink:0;}
+  .dot.ok{background:var(--teal);box-shadow:0 0 6px var(--teal);}
+
+  /* ---------- layout ---------- */
+  .grid{display:grid;grid-template-columns:290px 1fr;gap:22px;}
+  @media (max-width:820px){.grid{grid-template-columns:1fr;}}
+
+  .panel{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;
+  }
+  .panel + .panel{margin-top:16px;}
+  .panel h3{
+    margin:0 0 12px;font-family:'Big Shoulders Display',sans-serif;font-weight:700;
+    font-size:16px;text-transform:uppercase;letter-spacing:1px;color:var(--amber);
+    display:flex;align-items:center;gap:8px;
+  }
+  .panel h3::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  label{display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--chalk-dim);margin:12px 0 5px;}
+  label:first-of-type{margin-top:0;}
+  select, textarea, input[type=text], input[type=number]{
+    width:100%;background:var(--pitch-deep);border:1px solid var(--line);color:var(--chalk);
+    padding:9px 10px;border-radius:var(--radius);font-family:'Karla',sans-serif;font-size:13.5px;
+  }
+  select:focus, textarea:focus, input:focus{outline:2px solid var(--teal);outline-offset:1px;}
+  textarea{font-family:'IBM Plex Mono',monospace;font-size:11.5px;min-height:110px;resize:vertical;}
+  input[type=range]{width:100%;accent-color:var(--amber);}
+  .rangeval{font-family:'IBM Plex Mono',monospace;color:var(--amber);font-size:12px;}
+
+  .sport-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;}
+  .sport-tabs button{
+    flex:1;min-width:70px;background:var(--pitch-deep);border:1px solid var(--line);color:var(--chalk-dim);
+    padding:8px 4px;border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:11px;
+    text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;transition:all .15s;
+  }
+  .sport-tabs button.active{background:var(--amber);color:#20140a;border-color:var(--amber);font-weight:600;}
+  .sport-tabs button:hover:not(.active){border-color:var(--teal);color:var(--chalk);}
+
+  button.action{
+    width:100%;margin-top:14px;background:var(--teal);color:#0c1815;border:none;
+    padding:11px;border-radius:var(--radius);font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:1px;cursor:pointer;
+  }
+  button.action:hover{background:#6cc2b5;}
+  button.action:disabled{background:var(--line);color:var(--chalk-dim);cursor:not-allowed;}
+  button.ghost{
+    width:100%;margin-top:8px;background:transparent;color:var(--chalk-dim);border:1px dashed var(--line);
+    padding:8px;border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;
+  }
+  button.ghost:hover{color:var(--chalk);border-color:var(--teal);}
+  .status-line{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--chalk-dim);margin-top:8px;min-height:14px;}
+  .status-line.err{color:var(--rust);}
+  .status-line.good{color:var(--teal);}
+
+  /* ---------- results ---------- */
+  #results:empty::before{
+    content:"Load a squad, pick a sport, hit Build XI. The dossier renders here.";
+    font-family:'IBM Plex Mono',monospace;color:var(--chalk-dim);font-size:13px;
+  }
+  .result-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+  .result-head h2{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:26px;
+    text-transform:uppercase;margin:0;
+  }
+  .result-head .meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--chalk-dim);}
+
+  .ratings-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+  .rating-chip{
+    flex:1;min-width:100px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:10px 12px;
+  }
+  .rating-chip .lbl{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:0.8px;color:var(--chalk-dim);}
+  .rating-chip .bar{height:4px;background:var(--pitch-deep);border-radius:2px;margin-top:6px;overflow:hidden;}
+  .rating-chip .bar i{display:block;height:100%;background:var(--amber);}
+  .rating-chip .val{font-family:'Big Shoulders Display',sans-serif;font-size:20px;font-weight:700;margin-top:2px;}
+
+  .pitch-block{
+    background:linear-gradient(180deg, #1a3327, #142620);
+    border:1px solid var(--line);border-radius:6px;padding:22px 14px;margin-bottom:20px;
+    display:flex;flex-direction:column;gap:16px;position:relative;
+  }
+  .pitch-block::before{
+    content:"";position:absolute;inset:8px;border:1px dashed rgba(238,241,228,0.12);border-radius:4px;pointer-events:none;
+  }
+  .row{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:9px 11px;min-width:118px;text-align:center;position:relative;
+  }
+  .card.locked{border-color:var(--amber);}
+  .card.oop{border-color:var(--rust);}
+  .card .pos{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--amber);letter-spacing:1px;text-transform:uppercase;}
+  .card .name{font-family:'Karla',sans-serif;font-weight:700;font-size:13.5px;margin:3px 0 5px;}
+  .card .fit{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--teal);}
+  .card .fit small{color:var(--chalk-dim);font-size:9px;}
+  .card .oop-badge{
+    display:block;margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;
+    color:var(--rust);text-transform:uppercase;letter-spacing:0.5px;
+  }
+  .warn-box{
+    background:rgba(193,91,66,0.12);border:1px solid var(--rust);border-radius:var(--radius);
+    padding:10px 12px;margin-bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;
+    color:#e3b8ab;line-height:1.6;
+  }
+  .warn-box .t{color:var(--rust);text-transform:uppercase;letter-spacing:1px;font-size:10px;margin-bottom:4px;display:block;}
+  .incomplete-flag{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--rust);border:1px solid var(--rust);
+    border-radius:20px;padding:3px 10px;text-transform:uppercase;letter-spacing:0.5px;
+  }
+
+  .subhead{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--chalk-dim);margin:26px 0 10px;display:flex;align-items:center;gap:8px;
+  }
+  .subhead::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  .bench-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .bench-chip{
+    background:var(--pitch-deep);border:1px solid var(--line);border-radius:var(--radius);
+    padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;
+  }
+  .bench-chip b{color:var(--chalk);font-family:'Karla',sans-serif;}
+
+  .analysis-item{
+    border-left:2px solid var(--teal);padding:8px 0 8px 12px;margin-bottom:8px;
+  }
+  .analysis-item .n{font-weight:700;font-size:13.5px;}
+  .analysis-item p{margin:4px 0 0;font-size:12.5px;color:var(--chalk-dim);line-height:1.5;}
+
+  .chem-box{display:flex;gap:16px;align-items:center;background:var(--pitch-deep);border:1px solid var(--line);border-radius:var(--radius);padding:14px;}
+  .chem-score{font-family:'Big Shoulders Display',sans-serif;font-size:42px;font-weight:800;color:var(--amber);line-height:1;}
+  .chem-score small{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--chalk-dim);font-weight:400;}
+  .chem-box p{margin:0;font-size:12.5px;color:var(--chalk-dim);line-height:1.55;}
+
+  .reject-list{display:flex;flex-direction:column;gap:6px;}
+  .reject-item{display:flex;justify-content:space-between;font-size:12.5px;border-bottom:1px dotted var(--line);padding:5px 0;}
+  .reject-item .why{color:var(--rust);font-family:'IBM Plex Mono',monospace;font-size:11px;}
+
+  .plan-item{background:var(--pitch-deep);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;}
+  .plan-item .t{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--teal);text-transform:uppercase;letter-spacing:1px;}
+  .plan-item .p{font-size:12.5px;margin-top:4px;color:var(--chalk-dim);line-height:1.5;}
+
+  .injury-box{background:var(--pitch-deep);border:1px solid var(--rust);border-radius:var(--radius);padding:12px 14px;font-size:12.5px;color:var(--chalk-dim);line-height:1.6;}
+  .injury-box b{color:var(--chalk);}
+
+  @media (prefers-reduced-motion: no-preference){
+    .card, button.action, .sport-tabs button{transition:transform .12s ease, background .15s ease, border-color .15s ease;}
+    .card:hover{transform:translateY(-2px);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="num">XI</div>
+      <div>
+        <h1>Match<span>day</span></h1>
+        <div class="tag">Squad Builder · Tactical Dossier</div>
+      </div>
+    </div>
+    <div class="api-row">
+      <span class="dot" id="statusDot"></span>
+      <input id="apiBase" type="text" value="http://localhost:8000" spellcheck="false">
+      <span id="apiState">checking…</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ================= LEFT: CONFIG ================= -->
+    <div>
+      <div class="panel">
+        <h3>Squad Data</h3>
+        <label>Paste players (JSON array or {sport: [...]})</label>
+        <textarea id="playersJson" placeholder='[{"name":"Alex Rowe","sport":"football","position":"ST","age":24,"overall":81,"attributes":{"pace":78,"shooting":85,"physical":70}}]'></textarea>
+        <label style="display:flex;align-items:center;gap:7px;margin-top:10px;text-transform:none;letter-spacing:0;font-family:'Karla',sans-serif;font-size:12.5px;color:var(--chalk-dim);">
+          <input type="checkbox" id="mergeMode" style="width:auto;accent-color:var(--teal);">
+          Add to existing squad instead of replacing it
+        </label>
+        <button class="action" id="uploadBtn" style="background:var(--amber);color:#20140a;">Load Pasted Squad</button>
+        <button class="ghost" id="diskBtn">Load data/players.json from server</button>
+        <button class="ghost" id="clearBtn" style="border-color:var(--rust);color:var(--rust);">Clear all loaded players</button>
+        <div class="status-line" id="playersStatus">No players loaded.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Build Config</h3>
+        <label>Sport</label>
+        <div class="sport-tabs" id="sportTabs">
+          <button data-sport="football" class="active">Football</button>
+          <button data-sport="basketball">Basketball</button>
+          <button data-sport="handball">Handball</button>
+          <button data-sport="volleyball">Volleyball</button>
+        </div>
+
+        <label>Formation</label>
+        <select id="formationSelect"></select>
+
+        <label>Play style</label>
+        <input id="playStyle" type="text" placeholder="e.g. possession-based attacking football">
+
+        <label>Target average age — <span class="rangeval" id="ageVal">26</span></label>
+        <input id="ageRange" type="range" min="18" max="36" value="26">
+
+        <button class="action" id="buildBtn">Build XI</button>
+        <div class="status-line" id="buildStatus"></div>
+      </div>
+    </div>
+
+    <!-- ================= RIGHT: RESULTS ================= -->
+    <div class="panel" style="min-height:400px;">
+      <div id="results"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let SPORT_CONFIG = null;
+let currentSport = "football";
+
+function apiBase(){ return $('apiBase').value.replace(/\/$/, ''); }
+
+async function api(path, opts){
+  const res = await fetch(apiBase() + path, Object.assign({
+    headers: {'Content-Type':'application/json'}
+  }, opts || {}));
+  let body;
+  try { body = await res.json(); } catch(e){ body = null; }
+  if(!res.ok){
+    const detail = (body && body.detail) ? body.detail : res.statusText;
+    throw new Error(detail);
+  }
+  return body;
+}
+
+async function checkHealth(){
+  try{
+    const h = await api('/health');
+    $('statusDot').classList.add('ok');
+    $('apiState').textContent = 'connected · ' + h.players_loaded + ' players loaded';
+    if(!SPORT_CONFIG){
+      SPORT_CONFIG = await api('/sports');
+      populateFormations();
+    }
+    setPlayersStatus(h.players_loaded + ' players currently loaded on the server.', 'good');
+  }catch(e){
+    $('statusDot').classList.remove('ok');
+    $('apiState').textContent = 'unreachable — check API base URL';
+  }
+}
+
+function populateFormations(){
+  const sel = $('formationSelect');
+  sel.innerHTML = '';
+  if(!SPORT_CONFIG || !SPORT_CONFIG[currentSport]) return;
+  const cfg = SPORT_CONFIG[currentSport];
+  Object.keys(cfg.formations).forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f;
+    opt.textContent = f + ' (' + cfg.formations[f].length + ' slots)';
+    if(f === cfg.default_formation) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function setPlayersStatus(msg, cls){
+  const el = $('playersStatus');
+  el.textContent = msg;
+  el.className = 'status-line' + (cls ? ' ' + cls : '');
+}
+function setBuildStatus(msg, cls){
+  const el = $('buildStatus');
+  el.textContent = msg;
+  el.className = 'status-line' + (cls ? ' ' + cls : '');
+}
+
+$('sportTabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.querySelectorAll('#sportTabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentSport = btn.dataset.sport;
+  populateFormations();
+});
+
+$('ageRange').addEventListener('input', () => { $('ageVal').textContent = $('ageRange').value; });
+
+$('uploadBtn').addEventListener('click', async () => {
+  let parsed;
+  try{
+    parsed = JSON.parse($('playersJson').value);
+  }catch(e){
+    setPlayersStatus('Invalid JSON: ' + e.message, 'err');
+    return;
+  }
+  let list;
+  if(Array.isArray(parsed)){
+    list = parsed;
+  } else if(typeof parsed === 'object'){
+    list = [];
+    Object.keys(parsed).forEach(sport => {
+      parsed[sport].forEach(p => { p.sport = sport.toLowerCase(); list.push(p); });
+    });
+  } else {
+    setPlayersStatus('Expected a JSON array or an object keyed by sport.', 'err');
+    return;
+  }
+  list.forEach(p => { if(!p.sport) p.sport = currentSport; });
+  const mode = $('mergeMode').checked ? 'merge' : 'replace';
+  try{
+    const r = await api('/players?mode=' + mode, {method:'POST', body: JSON.stringify(list)});
+    setPlayersStatus(r.players_loaded + ' players loaded (' + mode + ').', 'good');
+  }catch(e){
+    setPlayersStatus('Upload failed: ' + e.message, 'err');
+  }
+});
+
+$('diskBtn').addEventListener('click', async () => {
+  try{
+    const r = await api('/players/load-from-disk', {method:'POST'});
+    setPlayersStatus(r.players_loaded + ' players loaded from data/players.json on server.', 'good');
+  }catch(e){
+    setPlayersStatus('Load failed: ' + e.message, 'err');
+  }
+});
+
+$('clearBtn').addEventListener('click', async () => {
+  try{
+    await api('/players', {method:'DELETE'});
+    setPlayersStatus('Squad cleared.', 'good');
+  }catch(e){
+    setPlayersStatus('Clear failed: ' + e.message, 'err');
+  }
+});
+
+$('buildBtn').addEventListener('click', async () => {
+  setBuildStatus('Building…');
+  $('buildBtn').disabled = true;
+  try{
+    const payload = {
+      sport: currentSport,
+      formation: $('formationSelect').value || null,
+      play_style: $('playStyle').value || null,
+      avg_age_target: Number($('ageRange').value)
+    };
+    const result = await api('/team/build', {method:'POST', body: JSON.stringify(payload)});
+    render(result);
+    setBuildStatus('Built ' + result.starting_lineup.length + '-player XI in ' + result.formation + '.', 'good');
+  }catch(e){
+    setBuildStatus('Build failed: ' + e.message, 'err');
+  }finally{
+    $('buildBtn').disabled = false;
+  }
+});
+
+// group starting lineup into rows for a pitch-style read, by rough role bucket
+const ROLE_ROWS = {
+  football: [
+    ['GK'],
+    ['CB','LB','RB'],
+    ['CDM','CM','CAM','LM','RM'],
+    ['LW','RW','ST']
+  ],
+  handball: [ ['GK'], ['LW','LB','CB','RB','RW'], ['Pivot'] ],
+  basketball: [ ['C','PF'], ['SF'], ['PG','SG'] ],
+  volleyball: [ ['Middle Blocker'], ['Outside Hitter','Opposite'], ['Setter','Libero'] ]
+};
+
+function rowsFor(sport, lineup){
+  const buckets = ROLE_ROWS[sport] || [];
+  const used = new Set();
+  const rows = [];
+  buckets.forEach(roles => {
+    const players = lineup.filter(p => roles.includes(p.position));
+    players.forEach(p => used.add(p));
+    if(players.length) rows.push(players);
+  });
+  const leftover = lineup.filter(p => !used.has(p));
+  if(leftover.length) rows.push(leftover);
+  return rows.length ? rows : [lineup];
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function render(result){
+  const rows = rowsFor(result.sport, result.starting_lineup);
+
+  const ratingsHtml = Object.entries(result.team_ratings || {}).map(([k,v]) => `
+    <div class="rating-chip">
+      <div class="lbl">${esc(k.replace(/_/g,' '))}</div>
+      <div class="val">${v}</div>
+      <div class="bar"><i style="width:${v}%"></i></div>
+    </div>
+  `).join('');
+
+  const pitchHtml = rows.map(row => `
+    <div class="row">
+      ${row.map(p => `
+        <div class="card ${p.locked ? 'locked':''} ${p.out_of_position ? 'oop':''}">
+          <div class="pos">${esc(p.position)}</div>
+          <div class="name">${esc(p.name)}</div>
+          <div class="fit">${p.tactical_fit_score}<small> /100</small></div>
+          ${p.out_of_position ? `<span class="oop-badge">out of position · listed ${esc(p.listed_position || 'unknown')}</span>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  const warnings = result.warnings || [];
+  const warnHtml = warnings.length ? `
+    <div class="warn-box">
+      <span class="t">Heads up</span>
+      ${warnings.map(w => esc(w)).join('<br>')}
+    </div>
+  ` : '';
+
+  const benchHtml = (result.bench || []).map(b => `
+    <div class="bench-chip"><b>${esc(b.name)}</b> — ${esc(b.position)} · ${b.overall ?? ''}</div>
+  `).join('') || '<span style="color:var(--chalk-dim);font-size:12.5px;">No bench players available.</span>';
+
+  const analysisHtml = (result.player_analysis || []).map(a => `
+    <div class="analysis-item">
+      <div class="n">${esc(a.name)}</div>
+      <p>${esc(a.why_selected)} ${esc(a.tactical_role)}</p>
+      <p><em>Strengths:</em> ${esc(a.strengths)} — ${esc(a.fit_with_teammates)}</p>
+    </div>
+  `).join('');
+
+  const rejectHtml = (result.rejected_players || []).map(r => `
+    <div class="reject-item"><span>${esc(r.name)}</span><span class="why">${esc(r.reason_for_rejection)}</span></div>
+  `).join('') || '<span style="color:var(--chalk-dim);font-size:12.5px;">Nobody left out.</span>';
+
+  const planHtml = (result.future_plan || []).map(p => `
+    <div class="plan-item">
+      <div class="t">${esc(p.type)}${p.name ? ' — ' + esc(p.name) : ''}</div>
+      <div class="p">${esc(p.note)}</div>
+    </div>
+  `).join('');
+
+  const inj = result.injury_simulation || {};
+  const injuryHtml = inj.injured_player ? `
+    <div class="injury-box">
+      <b>${esc(inj.injured_player)}</b> (${esc(inj.position)}) goes down. Replacement: <b>${esc(inj.replacement)}</b>.<br>
+      ${esc(inj.impact_on_team)}<br>${esc(inj.tactical_adjustment)}
+    </div>
+  ` : '<span style="color:var(--chalk-dim);font-size:12.5px;">No simulation available.</span>';
+
+  const chem = result.chemistry || {};
+
+  $('results').innerHTML = `
+    <div class="result-head">
+      <h2>${esc(result.sport)} · ${esc(result.formation)}</h2>
+      <div class="meta">${result.play_style ? esc(result.play_style) : 'no play style set'}
+        ${result.is_complete === false ? '<span class="incomplete-flag">incomplete XI</span>' : ''}
+      </div>
+    </div>
+
+    ${warnHtml}
+
+    <div class="ratings-row">${ratingsHtml}</div>
+
+    <div class="pitch-block">${pitchHtml}</div>
+
+    <div class="subhead">Chemistry</div>
+    <div class="chem-box">
+      <div class="chem-score">${chem.score ?? '—'}<small>/100</small></div>
+      <p>${esc(chem.explanation || '')}</p>
+    </div>
+
+    <div class="subhead">Bench</div>
+    <div class="bench-row">${benchHtml}</div>
+
+    <div class="subhead">Player Analysis</div>
+    ${analysisHtml}
+
+    <div class="subhead">Left Out</div>
+    <div class="reject-list">${rejectHtml}</div>
+
+    <div class="subhead">Development Plan</div>
+    ${planHtml}
+
+    <div class="subhead">Injury Simulation</div>
+    ${injuryHtml}
+  `;
+}
+
+checkHealth();
+setInterval(checkHealth, 8000);
+</script>
+</body>
+</html>
